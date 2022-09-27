@@ -55,12 +55,11 @@ public class FormularioContolador {
         }else if(opcaoSelecioada == 5){
             alunoService.pesquisarPorEmailEIdade(gerenciadorDeInput.obtemEmail(), gerenciadorDeInput.obtemNome());
         }else if(opcaoSelecioada == 6){
-
+            alunoService.verificaUnicidadeDeAlunos();
         }else if(opcaoSelecioada == 7){
-
+            System.exit(0);
         }else{
             throw new IllegalArgumentException("Digite uma opção de 1 a 7");
         }
     }
-
 }

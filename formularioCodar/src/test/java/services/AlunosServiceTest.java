@@ -5,13 +5,18 @@ package services;
 import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
@@ -21,18 +26,20 @@ import codar.gerenciador.GerenciadorDeArquivos;
 import codar.service.AlunoService;
 
 public class AlunosServiceTest {
-    @InjectMocks
+	@InjectMocks
     AlunoService service;
     GerenciadorDeArquivos gerenciadorDeArquivos = mock(GerenciadorDeArquivos.class);
 
+    private final ByteArrayOutputStream saida = new ByteArrayOutputStream();
 
     @Before
     public void beforeEach(){
+        System.setOut(new PrintStream(saida));
         service = new AlunoService(gerenciadorDeArquivos);
     }
 
     @Test
-    public void deveRetornarListaComDadosDoAlunoAoTerTodosOsDadosCorretos() throws IOException {
+    public void deveChamarMetododeCriarAlunoComDadosDoAlunoAoTerTodosOsDadosCorretos() throws IOException {
         List<String> dadosAluno = new ArrayList<>();
         dadosAluno.add("Giulio Cesar Costa Bernardi");
         dadosAluno.add("giulioccbernardi@gmail.com");
@@ -43,7 +50,7 @@ public class AlunosServiceTest {
     }
 
     @Test
-    public void deveLancarExceptionAoReceberDataMenorQueDezesseis(){
+    public void deveLancarExceptionAoReceberDataMenorQueDezesseis() throws IOException {
         List<String> dadosAluno = new ArrayList<>();
         dadosAluno.add("Giulio Cesar Costa Bernardi");
         dadosAluno.add("giulioccbernardi@gmail.com");
@@ -52,13 +59,13 @@ public class AlunosServiceTest {
         try{
             service.salvarAluno(dadosAluno);
         }catch (IllegalArgumentException e){
-            Mockito.verifyNoInteractions(gerenciadorDeArquivos);
+            Mockito.verify(gerenciadorDeArquivos, never()).criarNovoAluno(dadosAluno);
 
         }
     }
 
     @Test
-    public void deveLancarExceptionAoReceberNomeVazio(){
+    public void deveLancarExceptionAoReceberNomeVazio() throws IOException {
         List<String> dadosAluno = new ArrayList<>();
         dadosAluno.add("");
         dadosAluno.add("giulioccbernardi@gmail.com");
@@ -67,13 +74,13 @@ public class AlunosServiceTest {
         try{
             service.salvarAluno(dadosAluno);
         }catch (IllegalArgumentException e){
-            Mockito.verifyNoInteractions(gerenciadorDeArquivos);
+            Mockito.verify(gerenciadorDeArquivos, never()).criarNovoAluno(dadosAluno);
 
         }
     }
 
     @Test
-    public void deveLancarExceptionAoReceberEmailVazio(){
+    public void deveLancarExceptionAoReceberEmailVazio() throws IOException {
         List<String> dadosAluno = new ArrayList<>();
         dadosAluno.add("Giulio Cesar");
         dadosAluno.add("");
@@ -82,7 +89,7 @@ public class AlunosServiceTest {
         try{
             service.salvarAluno(dadosAluno);
         }catch (IllegalArgumentException e){
-            Mockito.verifyNoInteractions(gerenciadorDeArquivos);
+            Mockito.verify(gerenciadorDeArquivos, never()).criarNovoAluno(dadosAluno);
 
         }
     }
@@ -201,4 +208,50 @@ public class AlunosServiceTest {
 
         assertThrows(IllegalArgumentException.class, ()->service.pesquisarPorEmailEIdade("Giulio123456", "email@fake.com"));
     }
+
+    @Test
+    public void deveDarErroAoChamarOMetodoDeConsultarAlunoSemTerAluno() throws IOException {
+        assertThrows(IllegalStateException.class, ()-> service.somarPorIdade());
+    }
+
+    @Test
+    public void deveChamarOMetodoDeConsultarAlunoAoCairEmSomarPorIdade() throws IOException {
+
+        HashMap<String, Integer> mapMockado = new HashMap<>();
+        mapMockado.put("Giulio", 21);
+        Mockito.when(gerenciadorDeArquivos.mapeiaAlunoIdade()).thenReturn(mapMockado);
+        service.somarPorIdade();
+
+        Mockito.verify(gerenciadorDeArquivos).mapeiaAlunoIdade();
+        assertEquals("21 anos: 1", saida.toString());
+    }
+
+    @Test
+    public void deveEntrarEmIfComNomeQueContenhaEspacoAoBuscarPorEmailENome() throws IOException {
+        List<List<String>> alunos = new ArrayList<>();
+        alunos.add(List.of("Giulio Cesar", "giulio@gmail.com", "21", "13131313131"));
+
+        Mockito.when(gerenciadorDeArquivos.mapeiaAluno()).thenReturn(alunos);
+        service.pesquisarPorEmailEIdade("Giulio Cesar", "giulio@gmail.com");
+
+        Assert.assertEquals(true, alunos.get(0).get(0).contains(" "));
+    }
+
+    @Test
+    public void deveDarErroAoCadastrarAlunoComEmailJaExistente() throws IOException {
+        List<String> aluno1 = new ArrayList<>();
+        aluno1.add("Giulio");
+        aluno1.add("giulio@gmail.com.br");
+        aluno1.add("21");
+        aluno1.add("13958475859");
+        when(gerenciadorDeArquivos.mapeiaAluno()).thenReturn(List.of(aluno1));
+
+        List<String> aluno2 = new ArrayList<>();
+        aluno2.add("Giulio");
+        aluno2.add("giulio@gmail.com.br");
+        aluno2.add("21");
+        aluno2.add("13958475859");
+        assertThrows(IllegalArgumentException.class, ()->service.salvarAluno(aluno2));
+    }
+
 }
